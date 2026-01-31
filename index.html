@@ -1,7 +1,969 @@
-<html>
-<h1>
-COMMING SOON
-  
-</h1>
-  
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Deep Space Voyager</title>
+    
+    <!-- Tailwind CSS for text gradients -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        :root {
+            --hud-color: #00f0ff;
+            --hud-warn: #ff3333;
+            --hud-bg: rgba(0, 10, 20, 0.85);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            touch-action: none;
+        }
+
+        #space-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* --- NAVBAR STYLES --- */
+        #navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 1.5rem 2rem;
+            background: rgba(0, 10, 20, 0.4); 
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.05em;
+            background: linear-gradient(to right, #22d3ee, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-link {
+            font-size: 1rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            letter-spacing: 0.05em;
+        }
+
+        /* --- GAME UI STYLES --- */
+        #cockpit {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .window-frame {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 0 150px rgba(0,0,0,0.9);
+            z-index: 11;
+            pointer-events: none;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: center;
+            padding: 15px;
+            margin-top: 80px; /* Space for Navbar */
+            background: linear-gradient(to bottom, rgba(0,0,0,0), transparent);
+            gap: 10px;
+            margin-right: 80px; 
+        }
+
+        .hud-readout {
+            background: var(--hud-bg);
+            border: var(--glass-border);
+            color: var(--hud-color);
+            padding: 8px 15px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 4px;
+            backdrop-filter: blur(5px);
+            min-width: 60px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .value {
+            font-size: 16px;
+            font-weight: 600;
+            display: block;
+            margin-top: 2px;
+            color: #fff;
+        }
+
+        #nav-compass {
+            position: absolute;
+            top: 100px; 
+            right: 20px;
+            width: 70px;
+            height: 70px;
+            background: rgba(0, 10, 20, 0.2); 
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(1px);
+            z-index: 20;
+        }
+
+        #nav-compass::before {
+            content: '';
+            position: absolute;
+            top: 4px; bottom: 4px; left: 4px; right: 4px;
+            border-radius: 50%;
+            border: 1px dashed rgba(0, 240, 255, 0.2);
+        }
+
+        #ship-icon {
+            width: 0; 
+            height: 0; 
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-bottom: 10px solid #00f0ff;
+            position: absolute;
+            z-index: 2;
+            opacity: 0.8;
+        }
+
+        #nav-pointer-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            animation: none;
+            transition: transform 0.1s linear;
+        }
+
+        #target-pointer {
+            position: absolute;
+            top: 3px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3px; 
+            height: 3px; 
+            border-radius: 50%;
+            background: #ffaa00;
+            box-shadow: 0 0 4px #ffaa00;
+        }
+
+        #nav-label {
+            position: absolute;
+            bottom: -15px;
+            width: 120px;
+            text-align: center;
+            font-size: 9px;
+            color: rgba(255, 170, 0, 0.8);
+            left: 50%;
+            transform: translateX(-50%);
+            text-shadow: 0 1px 2px black;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .controls-area {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 250px; 
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 20px;
+        }
+
+        .steering-container {
+            width: 320px;
+            height: 200px;
+            position: relative;
+            transform-origin: center bottom;
+            transition: transform 0.1s ease-out;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.8));
+        }
+
+        #yoke-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .dashboard-panel {
+            position: absolute;
+            bottom: 40px;
+            width: 220px;
+            height: 40px;
+            background: #1a1a1a;
+            border-top: 2px solid #333;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-evenly;
+            align-items: center;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 8; 
+            box-shadow: inset 0 0 10px #000;
+        }
+
+        .light {
+            width: 8px;
+            height: 8px;
+            background: #333;
+            border-radius: 50%;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+        }
+        .light.active {
+            background: #00ff00;
+            box-shadow: 0 0 5px #00ff00;
+        }
+        .light.warn {
+            background: #ff0000;
+            animation: blink 0.5s infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0.3; }
+        }
+
+        #instructions {
+            position: absolute;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            color: rgba(255,255,255,0.4);
+            font-size: 12px;
+            line-height: 1.8;
+            pointer-events: none;
+        }
+        
+        #boost-btn {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #444, #111);
+            border: 4px solid #333;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5), inset 0 2px 5px rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            cursor: pointer;
+            z-index: 20;
+        }
+        
+        #boost-inner {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #ff4400, #990000);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            box-shadow: inset 0 2px 5px rgba(255,255,255,0.3);
+            transition: transform 0.1s;
+        }
+
+        #boost-btn:active #boost-inner {
+            transform: scale(0.95);
+            background: radial-gradient(circle at 30% 30%, #cc3300, #660000);
+            box-shadow: inset 0 5px 10px rgba(0,0,0,0.5);
+        }
+
+        .speed-bars {
+            position: absolute;
+            right: 20px;
+            bottom: 120px;
+            width: 10px;
+            height: 150px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column-reverse;
+            padding: 2px;
+            border: 1px solid #333;
+        }
+        .bar {
+            width: 100%;
+            height: 4%;
+            background: #333;
+            margin-top: 1px;
+            border-radius: 1px;
+        }
+        .bar.fill {
+            background: #00f0ff;
+            box-shadow: 0 0 4px #00f0ff;
+        }
+
+        @media (max-width: 768px) {
+            #instructions { display: none; }
+            .hud-readout { min-width: 60px; padding: 5px; }
+            .value { font-size: 14px; }
+            #nav-compass { top: 120px; }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <div id="navbar">
+        <div class="logo-text">Dev<span class="text-white font-light">Design</span></div>
+        <div class="nav-link hidden md:block">
+            Exploring New <span class="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 font-bold">Horizons</span>
+        </div>
+    </div>
+
+    <canvas id="space-canvas"></canvas>
+
+    <!-- COCKPIT UI -->
+    <div id="cockpit">
+        <div class="window-frame"></div>
+        
+        <div class="hud-top">
+            <div class="hud-readout">
+                SPD
+                <span class="value" id="speed-val">0</span>
+            </div>
+            <div class="hud-readout">
+                DST
+                <span class="value" id="dist-val">0 AU</span>
+            </div>
+            <div class="hud-readout">
+                SYS
+                <span class="value" style="color: #0f0;" id="sys-status">OK</span>
+            </div>
+        </div>
+
+        <div id="nav-compass">
+            <div id="ship-icon" title="Your Ship"></div>
+            <div id="nav-pointer-container">
+                <div id="target-pointer"></div>
+            </div>
+            <div id="nav-label">TARGET SYS</div>
+        </div>
+
+        <div id="instructions">
+            <p><strong>CONTROLS</strong></p>
+            <p>W / TOUCH : Boost</p>
+            <p>MOUSE : Steer</p>
+        </div>
+
+        <div class="speed-bars" id="speed-bar-container"></div>
+        
+        <div id="boost-btn">
+            <div id="boost-inner">BOOST</div>
+        </div>
+
+        <div class="controls-area">
+            <div class="dashboard-panel">
+                <div class="light active"></div>
+                <div class="light active"></div>
+                <div class="light"></div>
+                <div class="light warn" id="engine-light"></div>
+                <div class="light active"></div>
+            </div>
+            
+            <div class="steering-container" id="steering-wheel">
+                <svg id="yoke-svg" viewBox="0 0 400 250" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="metal-dark" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#444;stop-opacity:1" />
+                            <stop offset="50%" style="stop-color:#222;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#111;stop-opacity:1" />
+                        </linearGradient>
+                        <linearGradient id="metal-light" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#666;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#333;stop-opacity:1" />
+                        </linearGradient>
+                        <linearGradient id="grip" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#1a1a1a;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#2a2a2a;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <path d="M170,180 L230,180 L220,250 L180,250 Z" fill="url(#metal-dark)" stroke="#111" stroke-width="2" />
+                    <path d="M170,180 Q100,180 80,150 Q60,100 60,60 Q60,20 20,20 L20,80 Q30,120 50,160 Q80,220 170,250 L230,250 Q320,220 350,160 Q370,120 380,80 L380,20 Q340,20 340,60 Q340,100 320,150 Q300,180 230,180 Z" 
+                          fill="url(#metal-dark)" stroke="#555" stroke-width="1" />
+                     <path d="M175,185 Q105,185 85,155 Q65,105 65,65 Q65,25 25,25" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
+                     <path d="M225,185 Q295,185 315,155 Q335,105 335,65 Q335,25 375,25" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
+                    <circle cx="200" cy="180" r="25" fill="#111" stroke="#333" stroke-width="3" />
+                    <text x="200" y="185" font-family="Arial" font-size="8" fill="#555" text-anchor="middle" font-weight="bold">PILOT</text>
+                    <rect x="15" y="20" width="15" height="70" rx="5" fill="url(#grip)" stroke="#000" />
+                    <rect x="370" y="20" width="15" height="70" rx="5" fill="url(#grip)" stroke="#000" />
+                    <circle cx="70" cy="50" r="5" fill="#900" stroke="#500" />
+                    <circle cx="330" cy="50" r="5" fill="#222" stroke="#000" />
+                    <circle cx="180" cy="240" r="2" fill="#555" />
+                    <circle cx="220" cy="240" r="2" fill="#555" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURATION & STATE ---
+        const config = {
+            starCount: 6000,
+            cruiseSpeed: 5.0,
+            maxSpeed: 100,
+            boostSpeed: 100,
+            acceleration: 0.8,
+            deceleration: 0.3,
+        };
+
+        const state = {
+            speed: config.cruiseSpeed,
+            targetSpeed: config.cruiseSpeed,
+            mouseX: 0,
+            mouseY: 0,
+            smoothedMouseX: 0,
+            smoothedMouseY: 0,
+            isBoosting: false
+        };
+
+        const systems = [];
+
+        // --- 2. THREE.JS SETUP ---
+        const canvas = document.getElementById('space-canvas');
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        
+        const scene = new THREE.Scene();
+        const ambientLight = new THREE.AmbientLight(0x404040); 
+        scene.add(ambientLight);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500000);
+        camera.position.set(0, 100, 800); 
+
+        // --- 3. HELPER: PROCEDURAL TEXTURES (REALISTIC) ---
+
+        // Sun/Star Glow
+        function createGlowTexture(colorHex) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const context = canvas.getContext('2d');
+            context.clearRect(0, 0, 256, 256);
+            const color = new THREE.Color(colorHex);
+            const r = Math.floor(color.r * 255), g = Math.floor(color.g * 255), b = Math.floor(color.b * 255);
+            const gradient = context.createRadialGradient(128, 128, 0, 128, 128, 128);
+            gradient.addColorStop(0, `rgba(255, 255, 255, 1)`);
+            gradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, 0.8)`);
+            gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.2)`);
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            context.fillStyle = gradient;
+            context.beginPath(); context.arc(128, 128, 128, 0, 2 * Math.PI); context.fill();
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // Background Stars
+        function createStarFieldTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            context.fillStyle = gradient; context.fillRect(0, 0, 32, 32);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // Realistic Gas Giant Texture
+        function createGasGiantTexture(colors) {
+            const width = 512; const height = 512;
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = colors[0];
+            ctx.fillRect(0,0,width,height);
+            for(let i=0; i<height; i++) {
+                const opacity = (Math.sin(i * 0.05) + 1) / 2 * 0.8;
+                ctx.globalAlpha = opacity;
+                ctx.fillStyle = colors[1];
+                ctx.fillRect(0, i, width, 2);
+                if (Math.random() > 0.99 && colors[2]) { // Storms
+                     ctx.globalAlpha = 0.8;
+                     ctx.fillStyle = colors[2];
+                     const stormW = Math.random() * 50 + 20;
+                     ctx.fillRect(Math.random()*width, i, stormW, Math.random()*8 + 2);
+                }
+            }
+            ctx.globalAlpha = 1.0;
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // Realistic Terrestrial Texture
+        function createTerrestrialTexture(water, land, cloud) {
+            const width = 512; const height = 256;
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = water;
+            ctx.fillRect(0,0,width,height);
+            // Land
+            ctx.fillStyle = land;
+            for(let i=0; i<40; i++) {
+                const cx = Math.random() * width;
+                const cy = Math.random() * height;
+                const r = Math.random() * 30 + 10;
+                ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
+            }
+            // Clouds
+            if(cloud) {
+                ctx.fillStyle = cloud;
+                for(let i=0; i<height; i+=5) {
+                    if(Math.random()>0.7) {
+                        ctx.globalAlpha = 0.4;
+                        ctx.fillRect(Math.random()*width, i, Math.random()*200, 5);
+                    }
+                }
+            }
+            ctx.globalAlpha = 1.0;
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // --- 4. SOLAR SYSTEM GENERATION ---
+        function createPlanet(data) {
+            let mat, geo;
+            geo = new THREE.SphereGeometry(data.size, 32, 32);
+            
+            if (data.type === 'gas') {
+                const tex = createGasGiantTexture(data.colors);
+                mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4 });
+            } else if (data.type === 'earth') {
+                const tex = createTerrestrialTexture(data.colors[0], data.colors[1], data.colors[2]);
+                mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, metalness: 0.1 });
+            } else if (data.type === 'rocky') {
+                const tex = createTerrestrialTexture(data.colors[0], data.colors[1], null);
+                mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 });
+            } else if (data.type === 'jagged') {
+                geo = new THREE.IcosahedronGeometry(data.size, 1);
+                mat = new THREE.MeshStandardMaterial({ color: data.color, roughness: 1.0, flatShading: true });
+            } else {
+                mat = new THREE.MeshStandardMaterial({ color: data.color || 0xcccccc, roughness: 0.8 });
+            }
+
+            const mesh = new THREE.Mesh(geo, mat);
+            const pivot = new THREE.Object3D();
+            pivot.rotation.y = Math.random() * Math.PI * 2;
+            pivot.add(mesh);
+            mesh.position.x = data.dist;
+
+            if (data.hasRings) {
+                const ringGeo = new THREE.RingGeometry(data.size * 1.4, data.size * 2.2, 64);
+                // Use white/bluish rings for Saturn if it's blue
+                const ringColor = data.name === 'Saturn' ? 0xccddff : 0xaa9977;
+                const ringMat = new THREE.MeshBasicMaterial({ color: ringColor, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 2.2;
+                mesh.add(ring);
+            }
+            return { mesh, pivot, speed: data.speed };
+        }
+
+        function createAsteroidBelt(count, minDist, maxDist) {
+            const belt = new THREE.Group();
+            const asteroidGeo = new THREE.IcosahedronGeometry(1, 0);
+            const asteroidMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 1.0, flatShading: true });
+
+            for(let i=0; i<count; i++) {
+                const asteroid = new THREE.Mesh(asteroidGeo, asteroidMat);
+                const angle = Math.random() * Math.PI * 2;
+                const dist = minDist + Math.random() * (maxDist - minDist);
+                const variation = Math.random() * 40 - 20;
+                asteroid.position.set(Math.cos(angle) * dist, variation, Math.sin(angle) * dist);
+                const s = 1 + Math.random() * 4;
+                asteroid.scale.set(s, s * (Math.random() * 0.5 + 0.5), s * (Math.random() * 0.5 + 0.5));
+                asteroid.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+                belt.add(asteroid);
+            }
+            return belt;
+        }
+
+        function createStar(colorHex, size, intensity) {
+            const starGroup = new THREE.Group();
+            const starGeo = new THREE.SphereGeometry(size, 32, 32);
+            const starMat = new THREE.MeshBasicMaterial({ color: colorHex });
+            const star = new THREE.Mesh(starGeo, starMat);
+            starGroup.add(star);
+
+            const sunLight = new THREE.PointLight(colorHex, intensity, 10000);
+            starGroup.add(sunLight);
+            
+            const glowMaterial = new THREE.SpriteMaterial({ 
+                map: createGlowTexture(colorHex),
+                color: colorHex, 
+                transparent: true, 
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+            const sunGlow = new THREE.Sprite(glowMaterial);
+            sunGlow.scale.set(size * 5, size * 5, 1.0);
+            starGroup.add(sunGlow);
+            return starGroup;
+        }
+
+        function createSolarSystem(name, position, starData, planetsData, hasAsteroids = false) {
+            const systemGroup = new THREE.Group();
+            systemGroup.position.copy(position);
+            scene.add(systemGroup);
+
+            const planetMeshes = [];
+            let star;
+
+            if (starData.type === 'binary') {
+                const star1 = createStar(starData.color1, starData.size1, starData.intensity1);
+                star1.position.set(-starData.separation/2, 0, 0);
+                systemGroup.add(star1);
+                
+                const star2 = createStar(starData.color2, starData.size2, starData.intensity2);
+                star2.position.set(starData.separation/2, 0, 0);
+                systemGroup.add(star2);
+                
+                star = new THREE.Group();
+                star.add(star1);
+                star.add(star2);
+                systemGroup.add(star);
+            } else {
+                star = createStar(starData.color, starData.size, starData.intensity);
+                systemGroup.add(star);
+            }
+
+            if (hasAsteroids) {
+                const asteroidBelt = createAsteroidBelt(600, starData.beltMin, starData.beltMax);
+                systemGroup.add(asteroidBelt);
+                planetMeshes.push({ mesh: asteroidBelt, pivot: new THREE.Object3D(), speed: 0.002, isBelt: true });
+                systemGroup.add(planetMeshes[planetMeshes.length-1].pivot);
+                planetMeshes[planetMeshes.length-1].pivot.add(asteroidBelt);
+            }
+
+            planetsData.forEach(p => {
+                const planetObj = createPlanet(p);
+                systemGroup.add(planetObj.pivot);
+                planetMeshes.push(planetObj);
+            });
+
+            systems.push({ name: name, position: position, planetMeshes: planetMeshes, star: star, isBinary: starData.type === 'binary' });
+        }
+
+        // --- SYSTEMS CONFIGURATION ---
+        
+        // 1. SOLAR SYSTEM (With Realistic Textures + Blue Saturn)
+        createSolarSystem("SOLAR", new THREE.Vector3(0, 0, 0), 
+            { color: 0xffaa00, size: 120, intensity: 2.5, beltMin: 450, beltMax: 550 }, 
+            [
+                { name: "Mercury", size: 4, dist: 180, speed: 0.08, type: 'rocky', colors: ['#999999', '#555555'] },
+                { name: "Venus", size: 8, dist: 240, speed: 0.06, type: 'gas', colors: ['#e6c288', '#d4a659'] }, 
+                { name: "Earth", size: 9, dist: 320, speed: 0.05, type: 'earth', colors: ['#102850', '#2a5a1f', '#ffffff'] },
+                { name: "Mars", size: 6, dist: 400, speed: 0.04, type: 'rocky', colors: ['#8c3b28', '#662211'] },
+                { name: "Jupiter", size: 30, dist: 650, speed: 0.02, type: 'gas', colors: ['#cba585', '#9e7e63', '#7a5c45'] }, 
+                { name: "Saturn", size: 25, dist: 900, speed: 0.015, type: 'gas', colors: ['#3355ff', '#1133aa', '#ffffff'], hasRings: true }, // BLUE SATURN
+                { name: "Uranus", size: 15, dist: 1150, speed: 0.01, type: 'gas', colors: ['#aaddff', '#88ccff'] },
+                { name: "Neptune", size: 14, dist: 1400, speed: 0.008, type: 'gas', colors: ['#3355ff', '#2244dd'] },
+                { name: "Pluto", size: 3, dist: 1700, color: 0xdddddd, speed: 0.005, type: 'jagged' }
+            ], true
+        );
+
+        // 2. Proxima Centauri
+        createSolarSystem("PROXIMA", new THREE.Vector3(60000, 15000, -40000),
+            { color: 0xff3300, size: 80, intensity: 1.5 },
+            [
+                { name: "Prox b", size: 10, dist: 150, color: 0xaa5533, speed: 0.1, type: 'jagged' },
+                { name: "Prox c", size: 14, dist: 250, color: 0x884422, speed: 0.07, type: 'jagged' },
+                 { name: "Prox d", size: 6, dist: 350, color: 0x663311, speed: 0.05, type: 'jagged' }
+            ]
+        );
+
+        createSolarSystem("SIRIUS", new THREE.Vector3(-50000, -20000, 30000),
+            { type: 'binary', color1: 0xaaddff, size1: 100, intensity: 2.0, color2: 0xffffff, size2: 40, intensity2: 1.0, separation: 400 },
+            [
+                { name: "Sirius b I", size: 18, dist: 800, color: 0x55aaff, speed: 0.01, type: 'gas', colors: ['#55aaff', '#2288dd'] },
+                { name: "Sirius b II", size: 22, dist: 1100, color: 0x4488dd, speed: 0.008, hasRings: true, colors: ['#4488dd', '#1155aa'] }
+            ]
+        );
+        
+        createSolarSystem("TRAPPIST-1", new THREE.Vector3(30000, -40000, -10000),
+            { color: 0xff5500, size: 60, intensity: 1.2 },
+            [
+                 { name: "b", size: 8, dist: 100, color: 0xcc6644, speed: 0.12 },
+                 { name: "c", size: 9, dist: 130, color: 0xaa5533, speed: 0.1 },
+                 { name: "d", size: 7, dist: 160, color: 0x994422, speed: 0.09 },
+                 { name: "e", size: 9, dist: 200, color: 0x883311, speed: 0.08 },
+                 { name: "f", size: 10, dist: 250, color: 0x772200, speed: 0.07 },
+            ]
+        );
+
+        createSolarSystem("VEGA", new THREE.Vector3(-20000, 30000, -60000),
+            { color: 0xaaddff, size: 110, intensity: 2.2, beltMin: 400, beltMax: 500 },
+            [
+                { name: "Vega b", size: 25, dist: 600, color: 0xccddff, speed: 0.005, type: 'gas', colors: ['#ccddff', '#99bbff'] },
+                { name: "Debris", size: 1, dist: 350, color: 0x888888, speed: 0.02, type: 'rocky', colors: ['#888888', '#555555'] } 
+            ], true
+        );
+
+        createSolarSystem("KEPLER-186", new THREE.Vector3(80000, -10000, 50000),
+            { color: 0xff3300, size: 70, intensity: 1.2 },
+            [ { name: "186f", size: 10, dist: 300, color: 0x22aa88, speed: 0.02, type: 'earth', colors: ['#22aa88', '#115544', '#ffffff'] } ]
+        );
+
+        // --- ROGUE OBJECTS ---
+        const rogueGroup = new THREE.Group();
+        scene.add(rogueGroup);
+
+        for(let i=0; i<30; i++) {
+            const geo = new THREE.IcosahedronGeometry(Math.random() * 20 + 8, 1);
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: Math.random() * 0x555555, 
+                roughness: 1.0, 
+                flatShading: true,
+                metalness: 0.2
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(
+                (Math.random() - 0.5) * 180000,
+                (Math.random() - 0.5) * 80000,
+                (Math.random() - 0.5) * 180000
+            );
+            mesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+            rogueGroup.add(mesh);
+        }
+
+        // --- STARFIELD ---
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = [];
+        for(let i=0; i<config.starCount; i++) {
+            const x = (Math.random() - 0.5) * 10000;
+            const y = (Math.random() - 0.5) * 10000;
+            const z = (Math.random() - 0.5) * 10000;
+            starPos.push(x, y, z);
+        }
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({ 
+            color: 0xffffff, size: 5.0, transparent: true, opacity: 0.9,
+            map: createStarFieldTexture(), blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        const starField = new THREE.Points(starGeo, starMat);
+        scene.add(starField);
+
+        // --- DUST ---
+        const dustGeo = new THREE.BufferGeometry();
+        const dustPos = [];
+        const dustCount = 8000;
+        for(let i=0; i<dustCount; i++) {
+            const x = (Math.random() - 0.5) * 10000;
+            const y = (Math.random() - 0.5) * 10000;
+            const z = (Math.random() - 0.5) * 10000;
+            dustPos.push(x, y, z);
+        }
+        dustGeo.setAttribute('position', new THREE.Float32BufferAttribute(dustPos, 3));
+        const dustMat = new THREE.PointsMaterial({ 
+            color: 0x88aabb, size: 1.2, transparent: true, opacity: 0.4, sizeAttenuation: false 
+        });
+        const dustField = new THREE.Points(dustGeo, dustMat);
+        scene.add(dustField);
+
+        // --- UI & LOGIC ---
+        const steeringWheel = document.getElementById('steering-wheel');
+        const speedVal = document.getElementById('speed-val');
+        const distVal = document.getElementById('dist-val');
+        const speedBarContainer = document.getElementById('speed-bar-container');
+        const boostBtn = document.getElementById('boost-btn');
+        const navPointerContainer = document.getElementById('nav-pointer-container');
+        const navLabel = document.getElementById('nav-label');
+
+        for(let i=0; i<20; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            speedBarContainer.appendChild(bar);
+        }
+        const bars = Array.from(document.querySelectorAll('.bar'));
+
+        function updateHUD() {
+            // Speed
+            const speedPercent = (state.speed / config.maxSpeed) * 100;
+            speedVal.innerText = (state.speed * 10).toFixed(0);
+            
+            const activeBars = Math.floor((state.speed / config.maxSpeed) * bars.length);
+            bars.forEach((bar, i) => {
+                if (i < activeBars) bar.classList.add('fill');
+                else bar.classList.remove('fill');
+            });
+
+            // Find closest system
+            let closestSystem = systems[0];
+            let minDist = camera.position.distanceTo(closestSystem.position);
+            for(let i=1; i<systems.length; i++) {
+                const dist = camera.position.distanceTo(systems[i].position);
+                if(dist < minDist) {
+                    minDist = dist;
+                    closestSystem = systems[i];
+                }
+            }
+
+            distVal.innerText = Math.floor(minDist / 100);
+            navLabel.innerText = closestSystem.name;
+
+            // --- COMPASS LOGIC ---
+            const targetVec = closestSystem.position.clone().sub(camera.position);
+            targetVec.applyQuaternion(camera.quaternion.clone().invert());
+            let angle = Math.atan2(targetVec.x, -targetVec.z);
+            const degrees = angle * (180 / Math.PI);
+            navPointerContainer.style.transform = `rotate(${-degrees}deg)`;
+        }
+
+        // --- INPUT ---
+        function handleInput(x, y) {
+            state.mouseX = (x / window.innerWidth) * 2 - 1;
+            state.mouseY = (y / window.innerHeight) * 2 - 1;
+        }
+
+        document.addEventListener('mousemove', (e) => handleInput(e.clientX, e.clientY));
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            handleInput(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+
+        const setBoost = (active) => {
+            state.isBoosting = active;
+            state.targetSpeed = active ? config.boostSpeed : config.cruiseSpeed;
+        };
+
+        document.addEventListener('keydown', (e) => {
+            if(e.key === 'w' || e.key === 'ArrowUp') setBoost(true);
+            if(e.key === 's' || e.key === 'ArrowDown') state.targetSpeed = 0.5;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if(e.key === 'w' || e.key === 'ArrowUp' || e.key === 's' || e.key === 'ArrowDown') setBoost(false);
+        });
+
+        boostBtn.addEventListener('touchstart', (e) => { e.preventDefault(); setBoost(true); });
+        boostBtn.addEventListener('touchend', (e) => { e.preventDefault(); setBoost(false); });
+        boostBtn.addEventListener('mousedown', () => setBoost(true));
+        boostBtn.addEventListener('mouseup', () => setBoost(false));
+
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        });
+
+        // --- PHYSICS LOOP ---
+        function updatePhysics() {
+            state.speed += (state.targetSpeed - state.speed) * 0.05;
+
+            // SMOOTHED STEERING LOGIC
+            state.smoothedMouseX += (state.mouseX - state.smoothedMouseX) * 0.1;
+            state.smoothedMouseY += (state.mouseY - state.smoothedMouseY) * 0.1;
+            
+            const rotY = -state.smoothedMouseX * 0.015;
+            const rotX = -state.smoothedMouseY * 0.015;
+
+            camera.rotateY(rotY);
+            camera.rotateX(rotX);
+            
+            camera.rotateZ(-state.smoothedMouseX * 0.01);
+            camera.rotation.z *= 0.98;
+
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+            camera.position.addScaledVector(direction, state.speed);
+
+            // Infinite Starfield
+            const positions = starField.geometry.attributes.position.array;
+            for(let i=0; i<config.starCount * 3; i+=3) {
+                const dx = positions[i] - camera.position.x;
+                const dy = positions[i+1] - camera.position.y;
+                const dz = positions[i+2] - camera.position.z;
+                if(Math.abs(dx) > 5000) positions[i] += (dx > 0 ? -10000 : 10000);
+                if(Math.abs(dy) > 5000) positions[i+1] += (dy > 0 ? -10000 : 10000);
+                if(Math.abs(dz) > 5000) positions[i+2] += (dz > 0 ? -10000 : 10000);
+            }
+            starField.geometry.attributes.position.needsUpdate = true;
+
+            // Infinite Dust
+            const dustPositions = dustField.geometry.attributes.position.array;
+            for(let i=0; i<8000 * 3; i+=3) {
+                const dx = dustPositions[i] - camera.position.x;
+                const dy = dustPositions[i+1] - camera.position.y;
+                const dz = dustPositions[i+2] - camera.position.z;
+                if(Math.abs(dx) > 5000) dustPositions[i] += (dx > 0 ? -10000 : 10000);
+                if(Math.abs(dy) > 5000) dustPositions[i+1] += (dy > 0 ? -10000 : 10000);
+                if(Math.abs(dz) > 5000) dustPositions[i+2] += (dz > 0 ? -10000 : 10000);
+            }
+            dustField.geometry.attributes.position.needsUpdate = true;
+
+            // Animate Systems
+            systems.forEach(system => {
+                system.planetMeshes.forEach(p => {
+                    if(p.isBelt) {
+                        p.mesh.rotation.y += p.speed;
+                    } else {
+                        p.pivot.rotation.y += p.speed * 0.05;
+                        p.mesh.rotation.y += 0.005;
+                    }
+                });
+                if(system.isBinary) system.star.rotation.y += 0.01;
+            });
+
+            // Animate Rogue Objects
+            rogueGroup.children.forEach(obj => {
+                obj.rotation.x += 0.001;
+                obj.rotation.y += 0.002;
+            });
+
+            const wheelRot = state.smoothedMouseX * 70;
+            const wheelScale = 1 - (state.smoothedMouseY * 0.1);
+            steeringWheel.style.transform = `translateX(-50%) rotate(${wheelRot}deg) scale(${wheelScale})`;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updatePhysics();
+            updateHUD();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+    </script>
+</body>
 </html>
